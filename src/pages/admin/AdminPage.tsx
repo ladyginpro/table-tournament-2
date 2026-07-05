@@ -1,100 +1,1124 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { useScoreboard } from '../../features/scoreboard-refresh/useScoreboard';
-import { scoreboardApi } from '../../shared/api/scoreboardApi';
-import type { Participant, ScoreboardDocument, Team } from '../../shared/model/scoreboard';
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
+import { useScoreboard } from "../../features/scoreboard-refresh/useScoreboard";
+import { scoreboardApi } from "../../shared/api/scoreboardApi";
+import {
+  emptyScoreBreakdown,
+  PRACTICE_PARTICIPANT_MAX,
+  PRACTICE_STAGE_MAX,
+  scoreBreakdownTotal,
+  THEORY_PARTICIPANT_MAX,
+  THEORY_STAGE_MAX,
+  type Participant,
+  type ScoreBreakdown,
+  type ScoreboardDocument,
+  type Team,
+} from "../../shared/model/scoreboard";
 
-type Tab = 'settings' | 'teams' | 'participants' | 'scores' | 'final';
+type Tab = "settings" | "organizations" | "participants" | "results" | "final";
+type ScoreStage = "practiceScores" | "participantFinalScores";
+
 const tabNames: Record<Tab, string> = {
-  settings: 'Настройки', teams: 'Команды', participants: 'Участники', scores: 'Теория и практика', final: 'Финал',
+  settings: "Настройки",
+  organizations: "Организации",
+  participants: "Участники",
+  results: "Таблица результатов",
+  final: "Финал",
 };
 
-const toDocument = (data: NonNullable<ReturnType<typeof useScoreboard>['data']>): ScoreboardDocument => ({
-  settings: structuredClone(data.settings), teams: structuredClone(data.teams), participants: structuredClone(data.participants),
-  theoryScores: structuredClone(data.theoryScores), practiceScores: structuredClone(data.practiceScores),
-  participantFinalScores: structuredClone(data.participantFinalScores), teamFinalScores: structuredClone(data.teamFinalScores),
+const logoFiles = [
+  "bashgau.png",
+  "buinsk.png",
+  "dalgau.png",
+  "kazgau.png",
+  "kurskgau.png",
+  "menzel.png",
+  "mozhg.png",
+  "penzgau.png",
+  "skryabinka.png",
+  "spbgau.png",
+  "timiryaz.png",
+  "ulgau.png",
+  "uyar.png",
+  "vitebsk.png",
+];
+const mainFields: Array<[keyof ScoreBreakdown, string]> = [
+  ["time", "Время"],
+  ["safety", "ТБ"],
+  ["model", "Модель"],
+  ["mp", "МП"],
+  ["angle", "Угол"],
+];
+const parameterFields: Array<[keyof ScoreBreakdown, string]> = [
+  ["length", "Д"],
+  ["width", "В"],
+  ["c1", "C1"],
+  ["c2", "C2"],
+];
+const extraFields: Array<[keyof ScoreBreakdown, string]> = [
+  ["shape", "Форма"],
+  ["edge", "Край"],
+  ["sole", "Подошва"],
+  ["thickness", "Толщина"],
+];
+const allFields = [...mainFields, ...parameterFields, ...extraFields];
+
+const toDocument = (
+  data: NonNullable<ReturnType<typeof useScoreboard>["data"]>,
+): ScoreboardDocument => ({
+  settings: structuredClone(data.settings),
+  teams: structuredClone(data.teams),
+  participants: structuredClone(data.participants),
+  theoryScores: structuredClone(data.theoryScores),
+  practiceScores: structuredClone(data.practiceScores),
+  participantFinalScores: structuredClone(data.participantFinalScores),
+  teamFinalScores: structuredClone(data.teamFinalScores),
 });
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="admin-field"><span>{label}</span>{children}</label>;
+  return (
+    <label className="admin-field">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
 }
 
-function NumberInput({ value, max, onChange }: { value: number | null; max?: number; onChange: (value: number | null) => void }) {
-  return <input type="number" min="0" max={max} value={value ?? ''} onChange={(event) => onChange(event.target.value === '' ? null : Number(event.target.value))} />;
+function NumberInput({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <input
+      type="number"
+      min="0"
+      value={value ?? ""}
+      onChange={(event) =>
+        onChange(event.target.value === "" ? null : Number(event.target.value))
+      }
+    />
+  );
+}
+
+function ScoreInput({
+  value,
+  max,
+  disabled,
+  onChange,
+}: {
+  value: number;
+  max?: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <input
+      className="sheet-score-input"
+      type="number"
+      min="0"
+      max={max}
+      disabled={disabled}
+      value={value || ""}
+      onChange={(event) => {
+        const nextValue =
+          event.target.value === "" ? 0 : Number(event.target.value);
+        onChange(
+          Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(0, nextValue)),
+        );
+      }}
+    />
+  );
+}
+
+function OrganizationMark({ team }: { team: Team }) {
+  return (
+    <span className="organization-mark">
+      {team.logoFile ? (
+        <img src={`/assets/logos/teams/${team.logoFile}`} alt="" />
+      ) : (
+        <b>{team.shortName.slice(0, 2).toUpperCase()}</b>
+      )}
+    </span>
+  );
+}
+
+function StageHeaders({ tone }: { tone: "practice" | "final" }) {
+  return (
+    <>
+      {mainFields.map(([, label]) => (
+        <th key={label} rowSpan={2} className={tone}>
+          {label}
+        </th>
+      ))}
+      <th colSpan={4} className={tone}>
+        Параметры
+      </th>
+      <th colSpan={4} className={tone}>
+        Допы
+      </th>
+    </>
+  );
+}
+
+function ScoreSheetColumns() {
+  return (
+    <colgroup>
+      <col className="identity-column" />
+      <col className="country-column" />
+      <col className="theory-column" />
+      {allFields.map(([key]) => (
+        <col key={`practice-${key}`} className="score-column" />
+      ))}
+      <col className="practice-total-column" />
+      <col className="final-selector-column" />
+      {allFields.map(([key]) => (
+        <col key={`final-${key}`} className="score-column" />
+      ))}
+      <col className="grand-total-column" />
+    </colgroup>
+  );
+}
+
+function ScoreSheetHeader() {
+  return (
+    <thead>
+      <tr>
+        <th rowSpan={3} className="identity-head">
+          Уч. заведение / ФИО
+        </th>
+        <th rowSpan={3}>Страна</th>
+        <th rowSpan={3} className="theory">
+          Теория
+          <br />
+          <small>макс. {THEORY_PARTICIPANT_MAX}</small>
+        </th>
+        <th colSpan={13} className="practice">
+          Практика
+          <br />
+          <small>макс. {PRACTICE_PARTICIPANT_MAX} на участника</small>
+        </th>
+        <th rowSpan={3} className="practice-total">
+          Итого за практику
+        </th>
+        <th rowSpan={3} className="final-selector">
+          Финал
+        </th>
+        <th colSpan={13} className="final">
+          Финал
+        </th>
+        <th rowSpan={3} className="grand-total">
+          ИТОГО
+        </th>
+      </tr>
+      <tr>
+        <StageHeaders tone="practice" />
+        <StageHeaders tone="final" />
+      </tr>
+      <tr>
+        {parameterFields.map(([, label]) => (
+          <th key={`p-${label}`} className="practice">
+            {label}
+          </th>
+        ))}
+        {extraFields.map(([, label]) => (
+          <th key={`pe-${label}`} className="practice">
+            {label}
+          </th>
+        ))}
+        {parameterFields.map(([, label]) => (
+          <th key={`f-${label}`} className="final">
+            {label}
+          </th>
+        ))}
+        {extraFields.map(([, label]) => (
+          <th key={`fe-${label}`} className="final">
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+function FinalSheetColumns() {
+  return (
+    <colgroup>
+      <col className="identity-column" />
+      <col className="country-column" />
+      {allFields.map(([key]) => (
+        <col key={key} className="score-column" />
+      ))}
+      <col className="grand-total-column" />
+    </colgroup>
+  );
+}
+
+function FinalSheetHeader() {
+  return (
+    <thead>
+      <tr>
+        <th rowSpan={3} className="identity-head">
+          Уч. заведение / ФИО
+        </th>
+        <th rowSpan={3}>Страна</th>
+        <th colSpan={13} className="final">
+          Финал
+        </th>
+        <th rowSpan={3} className="grand-total">
+          Итого за финал
+        </th>
+      </tr>
+      <tr>
+        <StageHeaders tone="final" />
+      </tr>
+      <tr>
+        {parameterFields.map(([, label]) => (
+          <th key={`f-${label}`} className="final">
+            {label}
+          </th>
+        ))}
+        {extraFields.map(([, label]) => (
+          <th key={`fe-${label}`} className="final">
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
 }
 
 export function AdminPage() {
   const { data, error: loadError } = useScoreboard(false);
   const [draft, setDraft] = useState<ScoreboardDocument | null>(null);
-  const [tab, setTab] = useState<Tab>('settings');
-  const [message, setMessage] = useState('');
+  const [tab, setTab] = useState<Tab>("results");
+  const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
+  const finalStickyHeaderRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (data && !draft) setDraft(toDocument(data)); }, [data, draft]);
-  if (!draft) return <main className="service-page"><h1>Админка</h1><p>{loadError || 'Загрузка Excel…'}</p></main>;
+  useEffect(() => {
+    if (data && !draft) setDraft(toDocument(data));
+  }, [data, draft]);
+  useEffect(() => {
+    if (!message) return;
+    const timeout = window.setTimeout(() => setMessage(""), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [message]);
 
-  const patchTeam = (teamId: string, patch: Partial<Team>) => setDraft((current) => current && ({
-    ...current, teams: current.teams.map((team) => team.teamId === teamId ? { ...team, ...patch } : team),
-  }));
-  const patchParticipant = (participantId: string, patch: Partial<Participant>) => setDraft((current) => current && ({
-    ...current, participants: current.participants.map((item) => item.participantId === participantId ? { ...item, ...patch } : item),
-  }));
-  const patchTheory = (participantId: string, score: number) => setDraft((current) => current && ({
-    ...current, theoryScores: current.theoryScores.map((item) => item.participantId === participantId ? { ...item, score } : item),
-  }));
-  const patchPractice = (participantId: string, patch: { score?: number; status?: 'done' | 'preparing' | 'not_started' }) => setDraft((current) => current && ({
-    ...current, practiceScores: current.practiceScores.map((item) => item.participantId === participantId ? { ...item, ...patch } : item),
-  }));
+  const participantsByTeam = useMemo(() => {
+    const map = new Map<string, Participant[]>();
+    for (const participant of draft?.participants ?? [])
+      map.set(participant.teamId, [
+        ...(map.get(participant.teamId) ?? []),
+        participant,
+      ]);
+    return map;
+  }, [draft?.participants]);
+
+  if (!draft)
+    return (
+      <main className="service-page">
+        <h1>Админка</h1>
+        <p>{loadError || "Загрузка данных…"}</p>
+      </main>
+    );
+
+  const theoryByParticipant = new Map(
+    draft.theoryScores.map((score) => [score.participantId, score]),
+  );
+  const practiceByParticipant = new Map(
+    draft.practiceScores.map((score) => [score.participantId, score]),
+  );
+  const finalByParticipant = new Map(
+    draft.participantFinalScores.map((score) => [score.participantId, score]),
+  );
+
+  const patchTeam = (teamId: string, patch: Partial<Team>) =>
+    setDraft(
+      (current) =>
+        current && {
+          ...current,
+          teams: current.teams.map((team) =>
+            team.teamId === teamId ? { ...team, ...patch } : team,
+          ),
+        },
+    );
+
+  const patchParticipant = (
+    participantId: string,
+    patch: Partial<Participant>,
+  ) =>
+    setDraft(
+      (current) =>
+        current && {
+          ...current,
+          participants: current.participants.map((participant) =>
+            participant.participantId === participantId
+              ? { ...participant, ...patch }
+              : participant,
+          ),
+        },
+    );
+
+  const patchTheory = (participantId: string, score: number) =>
+    setDraft(
+      (current) =>
+        current && {
+          ...current,
+          theoryScores: current.theoryScores.map((item) =>
+            item.participantId === participantId ? { ...item, score } : item,
+          ),
+        },
+    );
+
+  const patchBreakdown = (
+    stage: ScoreStage,
+    participantId: string,
+    key: keyof ScoreBreakdown,
+    value: number,
+  ) =>
+    setDraft(
+      (current) =>
+        current && {
+          ...current,
+          [stage]: current[stage].map((score) =>
+            score.participantId === participantId
+              ? { ...score, [key]: value }
+              : score,
+          ),
+        },
+    );
+
+  const setFinalParticipant = (participantId: string, checked: boolean) =>
+    setDraft((current) => {
+      if (!current) return current;
+      const selected = current.participants.map((participant) =>
+        participant.participantId === participantId
+          ? { ...participant, isFinalParticipant: checked }
+          : participant,
+      );
+      const teamId = selected.find(
+        (participant) => participant.participantId === participantId,
+      )?.teamId;
+      return {
+        ...current,
+        participants: selected,
+        teams: current.teams.map((team) =>
+          team.teamId === teamId
+            ? {
+                ...team,
+                isFinalist: selected.some(
+                  (participant) =>
+                    participant.teamId === teamId &&
+                    participant.isFinalParticipant,
+                ),
+              }
+            : team,
+        ),
+      };
+    });
+
+  const addOrganization = () =>
+    setDraft((current) => {
+      if (!current) return current;
+      const teamId = crypto.randomUUID();
+      const team: Team = {
+        teamId,
+        fullName: "Новая организация",
+        shortName: "Новая организация",
+        country: "ru",
+        logoFile: "",
+        isTheoryActive: true,
+        isPracticeActive: true,
+        isFinalist: false,
+        displayOrder: current.teams.length + 1,
+        manualRankTheory: null,
+        manualRankPractice: null,
+        manualRankFinal: null,
+      };
+      return {
+        ...current,
+        teams: [...current.teams, team],
+        teamFinalScores: [
+          ...current.teamFinalScores,
+          { teamId, leg1: 0, leg2: 0 },
+        ],
+      };
+    });
+
+  const removeOrganization = (team: Team) => {
+    if (
+      !window.confirm(
+        `Удалить организацию «${team.shortName}» и всех её участников?`,
+      )
+    )
+      return;
+    setDraft((current) => {
+      if (!current) return current;
+      const ids = new Set(
+        current.participants
+          .filter((participant) => participant.teamId === team.teamId)
+          .map((participant) => participant.participantId),
+      );
+      return {
+        ...current,
+        teams: current.teams.filter((item) => item.teamId !== team.teamId),
+        participants: current.participants.filter(
+          (participant) => !ids.has(participant.participantId),
+        ),
+        theoryScores: current.theoryScores.filter(
+          (score) => !ids.has(score.participantId),
+        ),
+        practiceScores: current.practiceScores.filter(
+          (score) => !ids.has(score.participantId),
+        ),
+        participantFinalScores: current.participantFinalScores.filter(
+          (score) => !ids.has(score.participantId),
+        ),
+        teamFinalScores: current.teamFinalScores.filter(
+          (score) => score.teamId !== team.teamId,
+        ),
+      };
+    });
+  };
+
+  const addParticipant = (teamId: string) =>
+    setDraft((current) => {
+      if (!current) return current;
+      const participantId = crypto.randomUUID();
+      const participant: Participant = {
+        participantId,
+        teamId,
+        fullName: "Новый участник",
+        isTheoryParticipant: true,
+        isPracticeParticipant: true,
+        isFinalParticipant: false,
+        practiceSlot:
+          current.participants.filter((item) => item.teamId === teamId).length +
+          1,
+        finalSlot: null,
+      };
+      return {
+        ...current,
+        participants: [...current.participants, participant],
+        theoryScores: [...current.theoryScores, { participantId, score: 0 }],
+        practiceScores: [
+          ...current.practiceScores,
+          { participantId, ...emptyScoreBreakdown() },
+        ],
+        participantFinalScores: [
+          ...current.participantFinalScores,
+          { participantId, ...emptyScoreBreakdown() },
+        ],
+      };
+    });
+
+  const removeParticipant = (participantId: string) =>
+    setDraft((current) => {
+      if (!current) return current;
+      const teamId = current.participants.find(
+        (participant) => participant.participantId === participantId,
+      )?.teamId;
+      const participants = current.participants.filter(
+        (participant) => participant.participantId !== participantId,
+      );
+      return {
+        ...current,
+        participants,
+        teams: current.teams.map((team) =>
+          team.teamId === teamId
+            ? {
+                ...team,
+                isFinalist: participants.some(
+                  (participant) =>
+                    participant.teamId === teamId &&
+                    participant.isFinalParticipant,
+                ),
+              }
+            : team,
+        ),
+        theoryScores: current.theoryScores.filter(
+          (score) => score.participantId !== participantId,
+        ),
+        practiceScores: current.practiceScores.filter(
+          (score) => score.participantId !== participantId,
+        ),
+        participantFinalScores: current.participantFinalScores.filter(
+          (score) => score.participantId !== participantId,
+        ),
+      };
+    });
 
   const save = async () => {
-    setSaving(true); setMessage('');
-    try { const response = await scoreboardApi.save(draft); setDraft(toDocument(response)); setMessage('Сохранено в data/scoreboard.xlsx. Резервная копия создана.'); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : 'Ошибка сохранения.'); }
-    finally { setSaving(false); }
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await scoreboardApi.save({
+        ...draft,
+        settings: { ...draft.settings, finalInputMode: "participant" },
+      });
+      setDraft(toDocument(response));
+      setMessage("Данные сохранены. Эфирные экраны обновятся автоматически.");
+    } catch (reason) {
+      setMessage(
+        reason instanceof Error ? reason.message : "Ошибка сохранения.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
-  const reload = async () => {
-    setSaving(true); setMessage('');
-    try { const response = await scoreboardApi.reload(); setDraft(toDocument(response)); setMessage('Данные перечитаны из Excel.'); }
-    catch (reason) { setMessage(reason instanceof Error ? reason.message : 'Ошибка чтения Excel.'); }
-    finally { setSaving(false); }
-  };
 
-  const participantName = new Map(draft.participants.map((item) => [item.participantId, item.fullName]));
-  return <main className="service-page admin-page">
-    <div className="admin-title"><div><h1>Управление соревнованием</h1><p>Изменения попадут в эфир только после сохранения в Excel.</p></div>
-      <div className="admin-actions"><button className="button secondary" onClick={reload} disabled={saving}>Перечитать Excel</button><button className="button primary" onClick={save} disabled={saving}>{saving ? 'Сохранение…' : 'Сохранить'}</button></div>
-    </div>
-    {message && <div className={`admin-message ${message.startsWith('Сохранено') || message.startsWith('Данные') ? 'success' : 'error'}`}>{message}</div>}
-    <div className="admin-tabs">{(Object.keys(tabNames) as Tab[]).map((key) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{tabNames[key]}</button>)}</div>
+  const navActions = document.getElementById("admin-nav-actions");
+  const isSuccess = message.startsWith("Данные");
 
-    {tab === 'settings' && <section className="admin-card settings-grid">
-      <Field label="Интервал обновления, мс"><NumberInput value={draft.settings.refreshIntervalMs} onChange={(value) => setDraft({ ...draft, settings: { ...draft.settings, refreshIntervalMs: value ?? 2000 } })} /></Field>
-      <Field label="Количество финалистов"><NumberInput value={draft.settings.finalistsCount} max={15} onChange={(value) => setDraft({ ...draft, settings: { ...draft.settings, finalistsCount: value ?? 5 } })} /></Field>
-      <Field label="Название в эфире"><select value={draft.settings.teamNameMode} onChange={(event) => setDraft({ ...draft, settings: { ...draft.settings, teamNameMode: event.target.value as 'full' | 'short' } })}><option value="full">Полное</option><option value="short">Короткое</option></select></Field>
-      <Field label="Ввод финала"><select value={draft.settings.finalInputMode} onChange={(event) => setDraft({ ...draft, settings: { ...draft.settings, finalInputMode: event.target.value as 'participant' | 'team' } })}><option value="participant">По участникам</option><option value="team">По команде</option></select></Field>
-      <label className="check-field"><input type="checkbox" checked={draft.settings.transparentBackground} onChange={(event) => setDraft({ ...draft, settings: { ...draft.settings, transparentBackground: event.target.checked } })} /> Прозрачный фон для OBS</label>
-    </section>}
+  return (
+    <>
+      {navActions &&
+        createPortal(
+          <button className="nav-save-button" onClick={save} disabled={saving}>
+            <span>
+              {saving ? "Сохранение…" : "Сохранить"}
+              <br />
+              {saving ? "Подождите" : "изменения"}
+            </span>
+          </button>,
+          navActions,
+        )}
+      <main
+        className={`service-page admin-page ${tab === "results" || tab === "final" ? "sheet-page" : ""}`}
+      >
+        <div className="admin-title">
+          <div>
+            <h1>Управление соревнованием</h1>
+            <p>Данные участников и оценки по форме официальной ведомости.</p>
+          </div>
+        </div>
+        {message && (
+          <div
+            className={`save-notification ${isSuccess ? "success" : "error"}`}
+            role="status"
+          >
+            <div>
+              <b>
+                {isSuccess ? "Изменения сохранены" : "Не удалось сохранить"}
+              </b>
+              {!!message && <small>{message}</small>}
+            </div>
+          </div>
+        )}
+        <div className="admin-tabs">
+          {(Object.keys(tabNames) as Tab[]).map((key) => (
+            <button
+              key={key}
+              className={tab === key ? "active" : ""}
+              onClick={() => setTab(key)}
+            >
+              {tabNames[key]}
+            </button>
+          ))}
+        </div>
 
-    {tab === 'teams' && <section className="admin-card table-scroll"><table className="admin-table team-editor"><thead><tr><th>Команда</th><th>Полное название</th><th>Короткое</th><th>Страна</th><th>Активна</th><th>Финалист</th><th>Порядок</th><th>Место: теория</th><th>Место: практика</th><th>Место: финал</th></tr></thead><tbody>
-      {draft.teams.map((team) => <tr key={team.teamId}><td className="team-cell"><img src={`/assets/logos/teams/${team.logoFile}`} alt="" />{team.teamId}</td>
-        <td><input value={team.fullName} onChange={(event) => patchTeam(team.teamId, { fullName: event.target.value })} /></td><td><input value={team.shortName} onChange={(event) => patchTeam(team.teamId, { shortName: event.target.value })} /></td>
-        <td><select value={team.country} onChange={(event) => patchTeam(team.teamId, { country: event.target.value as 'ru' | 'by' })}><option value="ru">Россия</option><option value="by">Беларусь</option></select></td>
-        <td><input type="checkbox" checked={team.isActive} onChange={(event) => patchTeam(team.teamId, { isActive: event.target.checked })} /></td><td><input type="checkbox" checked={team.isFinalist} onChange={(event) => patchTeam(team.teamId, { isFinalist: event.target.checked })} /></td>
-        <td><NumberInput value={team.displayOrder} onChange={(value) => patchTeam(team.teamId, { displayOrder: value ?? 0 })} /></td><td><NumberInput value={team.manualRankTheory} onChange={(value) => patchTeam(team.teamId, { manualRankTheory: value })} /></td><td><NumberInput value={team.manualRankPractice} onChange={(value) => patchTeam(team.teamId, { manualRankPractice: value })} /></td><td><NumberInput value={team.manualRankFinal} onChange={(value) => patchTeam(team.teamId, { manualRankFinal: value })} /></td>
-      </tr>)}</tbody></table></section>}
+        {tab === "settings" && (
+          <section className="admin-card settings-grid">
+            <Field label="Интервал обновления эфира, мс">
+              <NumberInput
+                value={draft.settings.refreshIntervalMs}
+                onChange={(value) =>
+                  setDraft({
+                    ...draft,
+                    settings: {
+                      ...draft.settings,
+                      refreshIntervalMs: value ?? 2000,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="Название организации в эфире">
+              <select
+                value={draft.settings.teamNameMode}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    settings: {
+                      ...draft.settings,
+                      teamNameMode: event.target.value as "full" | "short",
+                    },
+                  })
+                }
+              >
+                <option value="full">Полное</option>
+                <option value="short">Короткое</option>
+              </select>
+            </Field>
+            <label className="check-field">
+              <input
+                type="checkbox"
+                checked={draft.settings.transparentBackground}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    settings: {
+                      ...draft.settings,
+                      transparentBackground: event.target.checked,
+                    },
+                  })
+                }
+              />{" "}
+              Прозрачный фон для OBS
+            </label>
+          </section>
+        )}
 
-    {tab === 'participants' && <section className="admin-card table-scroll"><table className="admin-table"><thead><tr><th>Команда</th><th>Участник</th><th>Теория</th><th>Практика</th><th>Слот практики</th><th>Финал</th><th>Слот финала</th></tr></thead><tbody>
-      {draft.participants.map((participant) => <tr key={participant.participantId}><td>{draft.teams.find((team) => team.teamId === participant.teamId)?.shortName}</td><td><input value={participant.fullName} onChange={(event) => patchParticipant(participant.participantId, { fullName: event.target.value })} /></td>
-        <td><input type="checkbox" checked={participant.isTheoryParticipant} onChange={(event) => patchParticipant(participant.participantId, { isTheoryParticipant: event.target.checked })} /></td><td><input type="checkbox" checked={participant.isPracticeParticipant} onChange={(event) => patchParticipant(participant.participantId, { isPracticeParticipant: event.target.checked })} /></td><td><NumberInput value={participant.practiceSlot} max={3} onChange={(value) => patchParticipant(participant.participantId, { practiceSlot: value })} /></td>
-        <td><input type="checkbox" checked={participant.isFinalParticipant} onChange={(event) => patchParticipant(participant.participantId, { isFinalParticipant: event.target.checked })} /></td><td><NumberInput value={participant.finalSlot} max={2} onChange={(value) => patchParticipant(participant.participantId, { finalSlot: value })} /></td></tr>)}</tbody></table></section>}
+        {tab === "organizations" && (
+          <section className="admin-card directory-card">
+            <div className="admin-section-head">
+              <div>
+                <h2>Организации</h2>
+                <p>Справочник учебных заведений из ведомости.</p>
+              </div>
+              <button
+                className="button primary"
+                type="button"
+                onClick={addOrganization}
+              >
+                + Добавить организацию
+              </button>
+            </div>
+            <div className="organization-list">
+              {draft.teams.map((team) => (
+                <article className="organization-editor" key={team.teamId}>
+                  <OrganizationMark team={team} />
+                  <Field label="Полное название">
+                    <input
+                      value={team.fullName}
+                      onChange={(event) =>
+                        patchTeam(team.teamId, { fullName: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Короткое название">
+                    <input
+                      value={team.shortName}
+                      onChange={(event) =>
+                        patchTeam(team.teamId, {
+                          shortName: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Страна">
+                    <select
+                      value={team.country}
+                      onChange={(event) =>
+                        patchTeam(team.teamId, {
+                          country: event.target.value as "ru" | "by",
+                        })
+                      }
+                    >
+                      <option value="ru">Россия</option>
+                      <option value="by">Беларусь</option>
+                    </select>
+                  </Field>
+                  <Field label="Логотип">
+                    <select
+                      value={team.logoFile}
+                      onChange={(event) =>
+                        patchTeam(team.teamId, { logoFile: event.target.value })
+                      }
+                    >
+                      <option value="">Без логотипа</option>
+                      {logoFiles.map((file) => (
+                        <option key={file}>{file}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <button
+                    className="icon-button danger"
+                    type="button"
+                    onClick={() => removeOrganization(team)}
+                  >
+                    Удалить
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
-    {tab === 'scores' && <section className="admin-card table-scroll"><table className="admin-table"><thead><tr><th>Команда</th><th>Участник</th><th>Теория (0–60)</th><th>Практика (0–100)</th><th>Статус практики</th></tr></thead><tbody>
-      {draft.participants.map((participant) => { const theory = draft.theoryScores.find((item) => item.participantId === participant.participantId); const practice = draft.practiceScores.find((item) => item.participantId === participant.participantId); return <tr key={participant.participantId}><td>{draft.teams.find((team) => team.teamId === participant.teamId)?.shortName}</td><td>{participant.fullName}</td><td>{theory ? <NumberInput value={theory.score} max={60} onChange={(value) => patchTheory(participant.participantId, value ?? 0)} /> : '—'}</td><td>{practice ? <NumberInput value={practice.score} max={100} onChange={(value) => patchPractice(participant.participantId, { score: value ?? 0 })} /> : '—'}</td><td>{practice ? <select value={practice.status} onChange={(event) => patchPractice(participant.participantId, { status: event.target.value as 'done' | 'preparing' | 'not_started' })}><option value="not_started">Не начал</option><option value="preparing">Готовится</option><option value="done">Выступил</option></select> : '—'}</td></tr>; })}
-    </tbody></table></section>}
+        {tab === "participants" && (
+          <section className="admin-card directory-card">
+            <div className="admin-section-head">
+              <div>
+                <h2>Участники</h2>
+                <p>Загружено из PDF: {draft.participants.length} участников.</p>
+              </div>
+            </div>
+            <div className="participant-groups">
+              {draft.teams.map((team) => (
+                <article className="participant-group" key={team.teamId}>
+                  <header>
+                    <div>
+                      <OrganizationMark team={team} />
+                      <strong>{team.shortName}</strong>
+                    </div>
+                    <button
+                      className="button secondary"
+                      type="button"
+                      onClick={() => addParticipant(team.teamId)}
+                    >
+                      + Добавить участника
+                    </button>
+                  </header>
+                  {(participantsByTeam.get(team.teamId) ?? []).map(
+                    (participant) => (
+                      <div
+                        className="participant-editor"
+                        key={participant.participantId}
+                      >
+                        <input
+                          value={participant.fullName}
+                          onChange={(event) =>
+                            patchParticipant(participant.participantId, {
+                              fullName: event.target.value,
+                            })
+                          }
+                        />
+                        <select
+                          value={participant.teamId}
+                          onChange={(event) =>
+                            patchParticipant(participant.participantId, {
+                              teamId: event.target.value,
+                            })
+                          }
+                        >
+                          {draft.teams.map((item) => (
+                            <option key={item.teamId} value={item.teamId}>
+                              {item.shortName}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="icon-button danger"
+                          type="button"
+                          onClick={() =>
+                            removeParticipant(participant.participantId)
+                          }
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    ),
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
-    {tab === 'final' && <section className="admin-card table-scroll">
-      <div className="mode-note">Режим ввода: <b>{draft.settings.finalInputMode === 'participant' ? 'по участникам — каждая нога до 100' : 'по команде — каждая нога до 200'}</b></div>
-      {draft.settings.finalInputMode === 'participant' ? <table className="admin-table"><thead><tr><th>Команда</th><th>Участник</th><th>Нога 1</th><th>Нога 2</th><th>Сумма</th></tr></thead><tbody>{draft.participantFinalScores.filter((score) => draft.teams.find((team) => team.teamId === draft.participants.find((participant) => participant.participantId === score.participantId)?.teamId)?.isFinalist).map((score) => { const participant = draft.participants.find((item) => item.participantId === score.participantId)!; const patchScore = (patch: Partial<typeof score>) => setDraft({ ...draft, participantFinalScores: draft.participantFinalScores.map((item) => item.participantId === score.participantId ? { ...item, ...patch } : item) }); return <tr key={score.participantId}><td>{draft.teams.find((team) => team.teamId === participant.teamId)?.shortName}</td><td>{participantName.get(score.participantId)}</td><td><NumberInput value={score.leg1} max={100} onChange={(value) => patchScore({ leg1: value ?? 0 })} /></td><td><NumberInput value={score.leg2} max={100} onChange={(value) => patchScore({ leg2: value ?? 0 })} /></td><td><b>{score.leg1 + score.leg2}</b></td></tr>; })}</tbody></table>
-      : <table className="admin-table"><thead><tr><th>Команда</th><th>Нога 1</th><th>Нога 2</th><th>Сумма</th></tr></thead><tbody>{draft.teamFinalScores.filter((score) => draft.teams.find((team) => team.teamId === score.teamId)?.isFinalist).map((score) => { const patchScore = (patch: Partial<typeof score>) => setDraft({ ...draft, teamFinalScores: draft.teamFinalScores.map((item) => item.teamId === score.teamId ? { ...item, ...patch } : item) }); return <tr key={score.teamId}><td>{draft.teams.find((team) => team.teamId === score.teamId)?.fullName}</td><td><NumberInput value={score.leg1} max={200} onChange={(value) => patchScore({ leg1: value ?? 0 })} /></td><td><NumberInput value={score.leg2} max={200} onChange={(value) => patchScore({ leg2: value ?? 0 })} /></td><td><b>{score.leg1 + score.leg2}</b></td></tr>; })}</tbody></table>}
-    </section>}
-  </main>;
+        {tab === "results" && (
+          <section className="admin-card score-sheet-card">
+            <div className="score-sheet-help">
+              <b>Таблица результатов</b>
+              <span>
+                Практика заполняется для всех участников. Отметьте галочкой тех,
+                кто выступает в финале.
+              </span>
+            </div>
+            <div className="score-sheet-sticky-header" ref={stickyHeaderRef}>
+              <table className="score-sheet">
+                <ScoreSheetColumns />
+                <ScoreSheetHeader />
+              </table>
+            </div>
+            <div
+              className="score-sheet-scroll"
+              onScroll={(event) => {
+                if (stickyHeaderRef.current)
+                  stickyHeaderRef.current.scrollLeft =
+                    event.currentTarget.scrollLeft;
+              }}
+            >
+              <table className="score-sheet score-sheet-body">
+                <ScoreSheetColumns />
+                <tbody>
+                  {[...draft.teams]
+                    .sort((a, b) => a.displayOrder - b.displayOrder)
+                    .map((team) => {
+                      const members = participantsByTeam.get(team.teamId) ?? [];
+                      const teamTheory = members.reduce(
+                        (sum, member) =>
+                          sum +
+                          (theoryByParticipant.get(member.participantId)
+                            ?.score ?? 0),
+                        0,
+                      );
+                      const teamPractice = members.reduce(
+                        (sum, member) =>
+                          sum +
+                          scoreBreakdownTotal(
+                            practiceByParticipant.get(member.participantId),
+                          ),
+                        0,
+                      );
+                      const teamFinal = members
+                        .filter((member) => member.isFinalParticipant)
+                        .reduce(
+                          (sum, member) =>
+                            sum +
+                            scoreBreakdownTotal(
+                              finalByParticipant.get(member.participantId),
+                            ),
+                          0,
+                        );
+                      return (
+                        <Fragment key={team.teamId}>
+                          <tr className="team-summary">
+                            <th>{team.shortName}</th>
+                            <td>{team.country}</td>
+                            <td>
+                              {teamTheory} / {THEORY_STAGE_MAX}
+                            </td>
+                            <td colSpan={13} />
+                            <td>
+                              {teamPractice} / {PRACTICE_STAGE_MAX}
+                            </td>
+                            <td />
+                            <td colSpan={13}>
+                              {teamFinal ? `Финал: ${teamFinal}` : ""}
+                            </td>
+                            <td>{teamTheory + teamPractice + teamFinal}</td>
+                          </tr>
+                          {members.map((participant) => {
+                            const theory =
+                              theoryByParticipant.get(participant.participantId)
+                                ?.score ?? 0;
+                            const practice = practiceByParticipant.get(
+                              participant.participantId,
+                            )!;
+                            const final = finalByParticipant.get(
+                              participant.participantId,
+                            )!;
+                            const practiceTotal = scoreBreakdownTotal(practice);
+                            const finalTotal = participant.isFinalParticipant
+                              ? scoreBreakdownTotal(final)
+                              : 0;
+                            return (
+                              <tr key={participant.participantId}>
+                                <th>{participant.fullName}</th>
+                                <td />
+                                <td>
+                                  <ScoreInput
+                                    value={theory}
+                                    max={Math.max(
+                                      0,
+                                      Math.min(
+                                        THEORY_PARTICIPANT_MAX,
+                                        THEORY_STAGE_MAX -
+                                          (teamTheory - theory),
+                                      ),
+                                    )}
+                                    onChange={(value) =>
+                                      patchTheory(
+                                        participant.participantId,
+                                        value,
+                                      )
+                                    }
+                                  />
+                                </td>
+                                {allFields.map(([key]) => (
+                                  <td key={`p-${key}`}>
+                                    <ScoreInput
+                                      value={practice[key]}
+                                      max={Math.max(
+                                        0,
+                                        Math.min(
+                                          PRACTICE_PARTICIPANT_MAX -
+                                            (practiceTotal - practice[key]),
+                                          PRACTICE_STAGE_MAX -
+                                            (teamPractice - practice[key]),
+                                        ),
+                                      )}
+                                      onChange={(value) =>
+                                        patchBreakdown(
+                                          "practiceScores",
+                                          participant.participantId,
+                                          key,
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </td>
+                                ))}
+                                <td className="calculated">{practiceTotal}</td>
+                                <td className="final-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={participant.isFinalParticipant}
+                                    onChange={(event) =>
+                                      setFinalParticipant(
+                                        participant.participantId,
+                                        event.target.checked,
+                                      )
+                                    }
+                                  />
+                                </td>
+                                {allFields.map(([key]) => (
+                                  <td key={`f-${key}`}>
+                                    <ScoreInput
+                                      value={final[key]}
+                                      disabled={!participant.isFinalParticipant}
+                                      onChange={(value) =>
+                                        patchBreakdown(
+                                          "participantFinalScores",
+                                          participant.participantId,
+                                          key,
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </td>
+                                ))}
+                                <td className="calculated grand">
+                                  {theory + practiceTotal + finalTotal}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </Fragment>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {tab === "final" && (
+          <section className="admin-card score-sheet-card final-sheet-card">
+            <div className="score-sheet-help">
+              <b>Финальный этап</b>
+              <span>
+                Здесь отображаются только участники, отмеченные для финала в
+                общей таблице результатов.
+              </span>
+            </div>
+            {draft.participants.some(
+              (participant) => participant.isFinalParticipant,
+            ) ? (
+              <>
+                <div
+                  className="score-sheet-sticky-header"
+                  ref={finalStickyHeaderRef}
+                >
+                  <table className="score-sheet final-only-sheet">
+                    <FinalSheetColumns />
+                    <FinalSheetHeader />
+                  </table>
+                </div>
+                <div
+                  className="score-sheet-scroll"
+                  onScroll={(event) => {
+                    if (finalStickyHeaderRef.current)
+                      finalStickyHeaderRef.current.scrollLeft =
+                        event.currentTarget.scrollLeft;
+                  }}
+                >
+                  <table className="score-sheet score-sheet-body final-only-sheet">
+                    <FinalSheetColumns />
+                    <tbody>
+                      {[...draft.teams]
+                        .sort((a, b) => a.displayOrder - b.displayOrder)
+                        .map((team) => {
+                          const finalists = (
+                            participantsByTeam.get(team.teamId) ?? []
+                          ).filter(
+                            (participant) => participant.isFinalParticipant,
+                          );
+                          if (!finalists.length) return null;
+                          const teamFinal = finalists.reduce(
+                            (sum, participant) =>
+                              sum +
+                              scoreBreakdownTotal(
+                                finalByParticipant.get(
+                                  participant.participantId,
+                                ),
+                              ),
+                            0,
+                          );
+                          return (
+                            <Fragment key={team.teamId}>
+                              <tr className="team-summary">
+                                <th>{team.shortName}</th>
+                                <td>{team.country}</td>
+                                <td colSpan={13} />
+                                <td>{teamFinal}</td>
+                              </tr>
+                              {finalists.map((participant) => {
+                                const final = finalByParticipant.get(
+                                  participant.participantId,
+                                )!;
+                                return (
+                                  <tr key={participant.participantId}>
+                                    <th>{participant.fullName}</th>
+                                    <td />
+                                    {allFields.map(([key]) => (
+                                      <td key={key}>
+                                        <ScoreInput
+                                          value={final[key]}
+                                          onChange={(value) =>
+                                            patchBreakdown(
+                                              "participantFinalScores",
+                                              participant.participantId,
+                                              key,
+                                              value,
+                                            )
+                                          }
+                                        />
+                                      </td>
+                                    ))}
+                                    <td className="calculated grand">
+                                      {scoreBreakdownTotal(final)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </Fragment>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="final-empty-state">
+                <b>Участники финала пока не выбраны</b>
+                <span>
+                  Откройте вкладку «Таблица результатов» и отметьте нужных
+                  участников в колонке «Финал».
+                </span>
+                <button
+                  className="button primary"
+                  type="button"
+                  onClick={() => setTab("results")}
+                >
+                  Перейти к выбору участников
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+    </>
+  );
 }

@@ -13,5 +13,4 @@ export const scoreboardApi = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(document),
   }).then(parse),
-  reload: () => fetch('/api/scoreboard/reload', { method: 'POST' }).then(parse),
 };

@@ -9,7 +9,7 @@ function PodiumCard({ result, data, className = '' }: { result?: TeamResult; dat
   const team = data.teams.find((item) => item.teamId === result.teamId)!;
   return <div className={`podium-card ${className}`}>
     <strong>{data.settings.teamNameMode === 'short' ? team.shortName : team.fullName}</strong>
-    <div><CountryFlag country={team.country} /><img src={`/assets/logos/teams/${team.logoFile}`} alt="" /></div>
+    <div><CountryFlag country={team.country} />{team.logoFile ? <img src={`/assets/logos/teams/${team.logoFile}`} alt="" /> : <b className="team-monogram">{team.shortName.slice(0, 2).toUpperCase()}</b>}</div>
     <b>{result.total}</b><small>баллов</small>
   </div>;
 }
@@ -21,7 +21,7 @@ export function FinalPage() {
   const teams = new Map(data.teams.map((team) => [team.teamId, team]));
   return <StageLayout background="/assets/backgrounds/final-bg.png" data={data}>
     <CompetitionHeader title="Итоговые результаты" accent="red" />
-    <div className="final-caps"><span>Максимум за финал — 400 баллов</span><span>Общая максимальная сумма — 1000 баллов</span></div>
+    <div className="final-caps"><span>Финал — сумма критериев выбранных участников</span><span>Итого: теория + практика + финал</span></div>
     <PodiumCard result={results[1]} data={data} className="podium-second" />
     <PodiumCard result={results[0]} data={data} className="podium-first" />
     <PodiumCard result={results[2]} data={data} className="podium-third" />

@@ -7,7 +7,7 @@ export function CountryFlag({ country }: Pick<Team, 'country'>) {
 export function TeamIdentity({ team, settings, compact = false }: { team: Team; settings: ScoreboardSettings; compact?: boolean }) {
   return <div className={`team-identity ${compact ? 'compact' : ''}`}>
     <CountryFlag country={team.country} />
-    <img src={`/assets/logos/teams/${team.logoFile}`} alt="" />
+    {team.logoFile ? <img src={`/assets/logos/teams/${team.logoFile}`} alt="" /> : <b className="team-monogram">{team.shortName.slice(0, 2).toUpperCase()}</b>}
     <span>{settings.teamNameMode === 'short' ? team.shortName : team.fullName}</span>
   </div>;
 }

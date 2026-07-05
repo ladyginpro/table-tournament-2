@@ -1,7 +1,55 @@
 export type CountryCode = 'ru' | 'by';
-export type PracticeStatus = 'done' | 'preparing' | 'not_started';
 export type TeamNameMode = 'full' | 'short';
 export type FinalInputMode = 'participant' | 'team';
+
+export const THEORY_PARTICIPANT_MAX = 60;
+export const PRACTICE_PARTICIPANT_MAX = 60;
+export const THEORY_STAGE_MAX = 300;
+export const PRACTICE_STAGE_MAX = 300;
+export const QUALIFYING_MAX = THEORY_STAGE_MAX + PRACTICE_STAGE_MAX;
+
+export const scoreFieldKeys = [
+  'time', 'safety', 'model', 'mp', 'angle',
+  'length', 'width', 'c1', 'c2',
+  'shape', 'edge', 'sole', 'thickness',
+] as const;
+
+export type ScoreFieldKey = typeof scoreFieldKeys[number];
+
+export interface ScoreBreakdown {
+  time: number;
+  safety: number;
+  model: number;
+  mp: number;
+  angle: number;
+  length: number;
+  width: number;
+  c1: number;
+  c2: number;
+  shape: number;
+  edge: number;
+  sole: number;
+  thickness: number;
+}
+
+export const emptyScoreBreakdown = (): ScoreBreakdown => ({
+  time: 0,
+  safety: 0,
+  model: 0,
+  mp: 0,
+  angle: 0,
+  length: 0,
+  width: 0,
+  c1: 0,
+  c2: 0,
+  shape: 0,
+  edge: 0,
+  sole: 0,
+  thickness: 0,
+});
+
+export const scoreBreakdownTotal = (score?: Partial<ScoreBreakdown>) => scoreFieldKeys
+  .reduce((sum, key) => sum + (Number(score?.[key]) || 0), 0);
 
 export interface ScoreboardSettings {
   refreshIntervalMs: number;
@@ -17,7 +65,8 @@ export interface Team {
   shortName: string;
   country: CountryCode;
   logoFile: string;
-  isActive: boolean;
+  isTheoryActive: boolean;
+  isPracticeActive: boolean;
   isFinalist: boolean;
   displayOrder: number;
   manualRankTheory: number | null;
@@ -37,8 +86,8 @@ export interface Participant {
 }
 
 export interface TheoryScore { participantId: string; score: number }
-export interface PracticeScore { participantId: string; score: number; status: PracticeStatus }
-export interface ParticipantFinalScore { participantId: string; leg1: number; leg2: number }
+export interface PracticeScore extends ScoreBreakdown { participantId: string }
+export interface ParticipantFinalScore extends ScoreBreakdown { participantId: string }
 export interface TeamFinalScore { teamId: string; leg1: number; leg2: number }
 
 export interface ScoreboardDocument {
@@ -51,12 +100,6 @@ export interface ScoreboardDocument {
   teamFinalScores: TeamFinalScore[];
 }
 
-export interface StageParticipantStatus {
-  participantId: string;
-  slot: number;
-  status: PracticeStatus;
-}
-
 export interface TeamResult {
   teamId: string;
   place: number;
@@ -66,7 +109,6 @@ export interface TeamResult {
   finalTotal: number;
   total: number;
   leaderGap: number;
-  practiceStatuses: StageParticipantStatus[];
   finalStatus: 'done' | 'not_finalist' | 'not_participating';
 }
 
@@ -95,7 +137,6 @@ export function calculateStageResults(document: ScoreboardDocument): ScoreboardR
   const theory = byId(document.theoryScores);
   const practice = byId(document.practiceScores);
   const participantFinal = byId(document.participantFinalScores);
-  const teamFinal = new Map(document.teamFinalScores.map((score) => [score.teamId, score]));
   const participantsByTeam = new Map<string, Participant[]>();
 
   for (const participant of document.participants) {
@@ -104,31 +145,17 @@ export function calculateStageResults(document: ScoreboardDocument): ScoreboardR
     participantsByTeam.set(participant.teamId, list);
   }
 
-  const base = document.teams.filter((team) => team.isActive).map((team) => {
+  const base = document.teams.map((team) => {
     const members = participantsByTeam.get(team.teamId) ?? [];
     const theoryTotal = members
       .filter((member) => member.isTheoryParticipant)
       .reduce((sum, member) => sum + (theory.get(member.participantId)?.score ?? 0), 0);
-    const practiceMembers = members
+    const practiceTotal = members
       .filter((member) => member.isPracticeParticipant)
-      .sort((a, b) => (a.practiceSlot ?? 99) - (b.practiceSlot ?? 99));
-    const practiceTotal = practiceMembers
-      .reduce((sum, member) => sum + (practice.get(member.participantId)?.score ?? 0), 0);
-
-    let finalTotal = 0;
-    if (team.isFinalist) {
-      if (document.settings.finalInputMode === 'team') {
-        const score = teamFinal.get(team.teamId);
-        finalTotal = (score?.leg1 ?? 0) + (score?.leg2 ?? 0);
-      } else {
-        finalTotal = members
-          .filter((member) => member.isFinalParticipant)
-          .reduce((sum, member) => {
-            const score = participantFinal.get(member.participantId);
-            return sum + (score?.leg1 ?? 0) + (score?.leg2 ?? 0);
-          }, 0);
-      }
-    }
+      .reduce((sum, member) => sum + scoreBreakdownTotal(practice.get(member.participantId)), 0);
+    const finalTotal = members
+      .filter((member) => member.isFinalParticipant)
+      .reduce((sum, member) => sum + scoreBreakdownTotal(participantFinal.get(member.participantId)), 0);
 
     return {
       teamId: team.teamId,
@@ -139,11 +166,6 @@ export function calculateStageResults(document: ScoreboardDocument): ScoreboardR
       finalTotal,
       total: theoryTotal + practiceTotal + finalTotal,
       leaderGap: 0,
-      practiceStatuses: practiceMembers.map((member, index) => ({
-        participantId: member.participantId,
-        slot: member.practiceSlot ?? index + 1,
-        status: practice.get(member.participantId)?.status ?? 'not_started',
-      })),
       finalStatus: team.isFinalist
         ? (finalTotal > 0 ? 'done' as const : 'not_participating' as const)
         : 'not_finalist' as const,
@@ -155,10 +177,15 @@ export function calculateStageResults(document: ScoreboardDocument): ScoreboardR
     const score = (item: TeamResult) => stage === 'theory'
       ? item.theoryTotal
       : stage === 'practice'
-        ? item.qualifyingTotal
+        ? item.practiceTotal
         : item.total;
     const rows = base
-      .filter((item) => stage !== 'final' || teamMap.get(item.teamId)?.isFinalist)
+      .filter((item) => {
+        const team = teamMap.get(item.teamId);
+        if (stage === 'theory') return team?.isTheoryActive;
+        if (stage === 'practice') return team?.isPracticeActive;
+        return team?.isFinalist;
+      })
       .sort((a, b) => {
         const scoreDifference = score(b) - score(a);
         if (scoreDifference !== 0) return scoreDifference;
@@ -180,37 +207,36 @@ export function calculateStageResults(document: ScoreboardDocument): ScoreboardR
 }
 
 export function normalizeScoreboard(document: ScoreboardDocument): ScoreboardResponse {
-  return {
-    ...document,
-    stageResults: calculateStageResults(document),
-    updatedAt: new Date().toISOString(),
-  };
+  return { ...document, stageResults: calculateStageResults(document), updatedAt: new Date().toISOString() };
 }
 
 export function validateScoreboard(document: ScoreboardDocument): string[] {
   const errors: string[] = [];
-  const finalistCount = document.teams.filter((team) => team.isFinalist).length;
-  if (document.settings.finalistsCount < 1 || document.settings.finalistsCount > 15) {
-    errors.push('Количество финалистов должно быть от 1 до 15.');
-  }
-  if (finalistCount > document.settings.finalistsCount) {
-    errors.push(`Выбрано финалистов: ${finalistCount}; разрешено: ${document.settings.finalistsCount}.`);
-  }
+  const teamIds = new Set(document.teams.map((team) => team.teamId));
+  const participantIds = new Set(document.participants.map((participant) => participant.participantId));
+  if (teamIds.size !== document.teams.length) errors.push('Идентификаторы организаций должны быть уникальными.');
+  if (participantIds.size !== document.participants.length) errors.push('Идентификаторы участников должны быть уникальными.');
+  if (document.teams.some((team) => !team.fullName.trim() || !team.shortName.trim())) errors.push('У каждой организации должны быть заполнены полное и короткое названия.');
+  if (document.participants.some((participant) => !participant.fullName.trim() || !teamIds.has(participant.teamId))) errors.push('У каждого участника должны быть заполнены имя и организация.');
   for (const item of document.theoryScores) {
-    if (item.score < 0 || item.score > 60) errors.push(`Теория: оценка ${item.participantId} должна быть от 0 до 60.`);
+    if (!Number.isFinite(item.score) || item.score < 0 || item.score > THEORY_PARTICIPANT_MAX) errors.push(`Теория: оценка ${item.participantId} должна быть от 0 до ${THEORY_PARTICIPANT_MAX}.`);
   }
-  for (const item of document.practiceScores) {
-    if (item.score < 0 || item.score > 100) errors.push(`Практика: оценка ${item.participantId} должна быть от 0 до 100.`);
-  }
-  for (const item of document.participantFinalScores) {
-    if (item.leg1 < 0 || item.leg1 > 100 || item.leg2 < 0 || item.leg2 > 100) {
-      errors.push(`Финал: каждая нога участника ${item.participantId} должна быть от 0 до 100.`);
+  for (const [stage, items] of [['Практика', document.practiceScores], ['Финал', document.participantFinalScores]] as const) {
+    for (const item of items) {
+      if (scoreFieldKeys.some((key) => !Number.isFinite(item[key]) || item[key] < 0)) {
+        errors.push(`${stage}: все баллы участника ${item.participantId} должны быть неотрицательными числами.`);
+      }
+      if (stage === 'Практика' && scoreBreakdownTotal(item) > PRACTICE_PARTICIPANT_MAX) {
+        errors.push(`Практика: сумма баллов участника ${item.participantId} не должна превышать ${PRACTICE_PARTICIPANT_MAX}.`);
+      }
     }
   }
-  for (const item of document.teamFinalScores) {
-    if (item.leg1 < 0 || item.leg1 > 200 || item.leg2 < 0 || item.leg2 > 200) {
-      errors.push(`Финал: каждая нога команды ${item.teamId} должна быть от 0 до 200.`);
-    }
+  const results = calculateStageResults(document);
+  for (const result of results.theory) {
+    if (result.theoryTotal > THEORY_STAGE_MAX) errors.push(`Теория: сумма баллов команды ${result.teamId} не должна превышать ${THEORY_STAGE_MAX}.`);
+  }
+  for (const result of results.practice) {
+    if (result.practiceTotal > PRACTICE_STAGE_MAX) errors.push(`Практика: сумма баллов команды ${result.teamId} не должна превышать ${PRACTICE_STAGE_MAX}.`);
   }
   return errors;
 }

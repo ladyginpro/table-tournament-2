@@ -1,0 +1,35 @@
+{
+  "name": "hoof-scoreboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n WEB,API -c cyan,green \"vite\" \"tsx watch server/index.ts\"",
+    "build": "tsc -b && vite build",
+    "start": "node --import tsx server/index.ts",
+    "check": "tsc -b --pretty false",
+    "release": "npm run build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-release.ps1"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.10",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "babel-plugin-react-compiler": "^19.1.0-rc.2",
+    "concurrently": "^9.2.0",
+    "sass": "^1.89.2",
+    "tsx": "^4.20.3",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.2"
+  }
+}

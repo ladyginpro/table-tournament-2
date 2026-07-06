@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ScoreboardDocument } from '../src/shared/model/scoreboard.ts';
 
@@ -15,7 +15,11 @@ export async function writeData(document: ScoreboardDocument): Promise<void> {
   await mkdir(dataDir, { recursive: true });
   const temporaryPath = `${dataPath}.tmp`;
   await writeFile(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
-  await rename(temporaryPath, dataPath);
+  try {
+    await copyFile(temporaryPath, dataPath);
+  } finally {
+    await rm(temporaryPath, { force: true });
+  }
 }
 
 export async function dataExists(): Promise<boolean> {

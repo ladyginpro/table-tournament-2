@@ -319,12 +319,12 @@ select {
 }
 .practice-table .score-head,
 .practice-table .score-row {
-    grid-template-columns: 90px minmax(510px, 1fr) 135px 135px 170px 270px 140px 155px;
+    grid-template-columns: 90px minmax(560px, 1fr) 150px 210px 300px 180px 190px;
 }
 .practice-table .score-head {
     height: 64px;
 }
-.practice-table .score-head span:nth-child(5) {
+.practice-table .score-head span:nth-child(4) {
     height: 64px;
     display: grid;
     place-content: center;
@@ -546,13 +546,24 @@ select {
 }
 .final-table .score-head,
 .final-table .score-row {
-    grid-template-columns: 110px 2.7fr 0.75fr 0.85fr 0.9fr 0.85fr 0.9fr;
+    grid-template-columns: 110px minmax(650px, 1fr) 250px 250px 190px;
 }
 .final-table .score-head {
     height: 58px;
 }
 .final-table .score-row {
     height: 44px;
+}
+.finalist-legs {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.finalist-legs i {
+    color: #7b8495;
+    font-style: normal;
+    font-weight: 500;
 }
 
 .service-nav {
@@ -1069,8 +1080,17 @@ select {
 .score-sheet col.grand-total-column {
     width: 90px;
 }
-.score-sheet.final-only-sheet {
-    width: 1484px;
+.score-sheet.practice-only-sheet {
+    width: 1549px;
+}
+.score-sheet.final-legs-sheet {
+    width: 1666px;
+}
+.score-sheet col.leg-column {
+    width: 72px;
+}
+.score-sheet col.participant-total-column {
+    width: 110px;
 }
 .score-sheet th.practice {
     background: #d9efd9;
@@ -1091,6 +1111,11 @@ select {
     width: 90px;
     background: #ff4b1e;
     color: #4c1304;
+}
+.score-sheet th.participant-total {
+    width: 110px;
+    background: #c61529;
+    color: #fff;
 }
 .score-sheet th.identity-head {
     z-index: 8;
@@ -1162,10 +1187,76 @@ select {
     background: #fff0ea;
     color: #a52a09;
 }
-.score-sheet .final-check input {
+.score-sheet .final-check input,
+.stage-check input {
     width: 18px;
     height: 18px;
     accent-color: #c61529;
+}
+.stage-check input {
+    width: 20px;
+    height: 20px;
+}
+.stage-check:not(.final) input {
+    accent-color: #238447;
+}
+.score-sheet .leg-label {
+    background: #fff0f1;
+    color: #a20c20;
+    font-size: 15px;
+    font-weight: 800;
+}
+.selection-card {
+    padding: 0;
+    overflow: hidden;
+}
+.selection-table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+    color: #263043;
+    font-size: 13px;
+}
+.selection-table th,
+.selection-table td {
+    height: 38px;
+    padding: 5px 8px;
+    border-right: 1px solid #c4cbd5;
+    border-bottom: 1px solid #c4cbd5;
+    text-align: center;
+    background: #fff;
+}
+.selection-table thead th {
+    height: 54px;
+    background: #cfecef;
+    color: #273a48;
+}
+.selection-table thead th:first-child,
+.selection-table tbody th {
+    width: 38%;
+    text-align: left;
+}
+.selection-table tbody th {
+    font-weight: 500;
+}
+.selection-table .team-summary th,
+.selection-table .team-summary td {
+    background: #dfe8e9;
+    color: #172d35;
+    font-weight: 800;
+}
+.selection-table .calculated {
+    background: #edf6ed;
+    color: #175222;
+    font-weight: 800;
+}
+.selection-table .calculated.grand {
+    background: #fff0ea;
+    color: #a52a09;
+}
+.inactive-score {
+    background: #f2f3f5 !important;
+    color: #9aa1ab;
 }
 .final-empty-state {
     min-height: 300px;

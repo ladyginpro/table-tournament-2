@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "start": "node --import tsx server/index.ts",
     "check": "tsc -b --pretty false",
+    "migrate": "tsx scripts/migrate-data.ts",
+    "restore-names": "tsx scripts/restore-names.ts",
     "release": "npm run build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-release.ps1"
   },
   "dependencies": {

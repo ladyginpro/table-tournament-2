@@ -23,7 +23,14 @@ export function useScoreboard(poll = true) {
     let active = true;
     const tick = async () => {
       const next = await load();
-      if (active && poll) timeoutRef.current = window.setTimeout(tick, next?.settings.refreshIntervalMs ?? 2000);
+      if (!active) return;
+      if (next && poll) {
+        timeoutRef.current = window.setTimeout(tick, next.settings.refreshIntervalMs);
+      } else if (!next) {
+        // В dev-режиме Vite иногда стартует раньше API. Повторяем запрос и на
+        // непериодических страницах (админка), пока сервер не станет доступен.
+        timeoutRef.current = window.setTimeout(tick, 750);
+      }
     };
     void tick();
     return () => { active = false; window.clearTimeout(timeoutRef.current); };

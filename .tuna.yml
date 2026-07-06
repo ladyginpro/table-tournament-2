@@ -1,0 +1,5 @@
+---
+tunnels:
+  web:
+    commandLine: tuna http 5173 --subdomain=table-tournament-2
+    tags: [main]

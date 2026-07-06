@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'node:path';
 import { createSeedDocument } from './seed.ts';
 import { backupData, dataExists, projectRoot, readData, writeData } from './storage.ts';
-import { normalizeScoreboard, validateScoreboard, type ScoreboardDocument, type ScoreboardResponse } from '../src/shared/model/scoreboard.ts';
+import { migrateScoreboard, normalizeScoreboard, validateScoreboard, type ScoreboardDocument, type ScoreboardResponse } from '../src/shared/model/scoreboard.ts';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
 async function loadScoreboard() {
-  const response = normalizeScoreboard(await readData());
+  const response = normalizeScoreboard(migrateScoreboard(await readData()));
   lastSuccessful = response;
   return response;
 }
@@ -38,7 +38,6 @@ app.post('/api/scoreboard', async (request, response) => {
       theoryScores: body.theoryScores,
       practiceScores: body.practiceScores,
       participantFinalScores: body.participantFinalScores,
-      teamFinalScores: body.teamFinalScores,
     };
     const errors = validateScoreboard(document);
     if (errors.length) return response.status(400).json({ error: errors.join(' ') });

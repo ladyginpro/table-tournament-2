@@ -10,7 +10,7 @@ export const scoreboardApi = {
   get: () => fetch('/api/scoreboard', { cache: 'no-store' }).then(parse),
   save: (document: ScoreboardDocument) => fetch('/api/scoreboard', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify(document),
   }).then(parse),
 };

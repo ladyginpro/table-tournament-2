@@ -57,7 +57,7 @@
       "logoFile": "dalgau.png",
       "isTheoryActive": true,
       "isPracticeActive": true,
-      "isFinalist": false,
+      "isFinalist": true,
       "displayOrder": 4,
       "manualRankTheory": null,
       "manualRankPractice": null,
@@ -71,7 +71,7 @@
       "logoFile": "kazgau.png",
       "isTheoryActive": true,
       "isPracticeActive": true,
-      "isFinalist": false,
+      "isFinalist": true,
       "displayOrder": 5,
       "manualRankTheory": null,
       "manualRankPractice": null,
@@ -99,7 +99,7 @@
       "logoFile": "ulgau.png",
       "isTheoryActive": true,
       "isPracticeActive": true,
-      "isFinalist": false,
+      "isFinalist": true,
       "displayOrder": 7,
       "manualRankTheory": null,
       "manualRankPractice": null,
@@ -334,9 +334,9 @@
       "teamId": "skryabinka",
       "fullName": "Марусова Мария Алексеевна",
       "isTheoryParticipant": true,
-      "isPracticeParticipant": false,
+      "isPracticeParticipant": true,
       "isFinalParticipant": false,
-      "practiceSlot": null,
+      "practiceSlot": 3,
       "finalSlot": null
     },
     {
@@ -344,9 +344,9 @@
       "teamId": "skryabinka",
       "fullName": "Распутько Галина Алексеевна",
       "isTheoryParticipant": true,
-      "isPracticeParticipant": false,
+      "isPracticeParticipant": true,
       "isFinalParticipant": true,
-      "practiceSlot": null,
+      "practiceSlot": 1,
       "finalSlot": null
     },
     {
@@ -354,9 +354,9 @@
       "teamId": "skryabinka",
       "fullName": "Валодзис Анастасия Владимировна",
       "isTheoryParticipant": true,
-      "isPracticeParticipant": false,
+      "isPracticeParticipant": true,
       "isFinalParticipant": true,
-      "practiceSlot": null,
+      "practiceSlot": 2,
       "finalSlot": null
     },
     {
@@ -385,9 +385,9 @@
       "fullName": "Ханмаа Кыйындак Тимуровна",
       "isTheoryParticipant": true,
       "isPracticeParticipant": false,
-      "isFinalParticipant": false,
+      "isFinalParticipant": true,
       "practiceSlot": null,
-      "finalSlot": null
+      "finalSlot": 1
     },
     {
       "participantId": "dalgau-p3",
@@ -405,9 +405,9 @@
       "fullName": "Сидоревич Иван Светославович",
       "isTheoryParticipant": true,
       "isPracticeParticipant": false,
-      "isFinalParticipant": false,
+      "isFinalParticipant": true,
       "practiceSlot": null,
-      "finalSlot": null
+      "finalSlot": 2
     },
     {
       "participantId": "dalgau-p5",
@@ -444,10 +444,10 @@
       "teamId": "kazgau-1",
       "fullName": "Плют Софья Алексеевна",
       "isTheoryParticipant": true,
-      "isPracticeParticipant": false,
-      "isFinalParticipant": false,
-      "practiceSlot": null,
-      "finalSlot": null
+      "isPracticeParticipant": true,
+      "isFinalParticipant": true,
+      "practiceSlot": 1,
+      "finalSlot": 2
     },
     {
       "participantId": "kazgau-1-p4",
@@ -464,10 +464,10 @@
       "teamId": "kazgau-1",
       "fullName": "Гюрпынар Джан",
       "isTheoryParticipant": true,
-      "isPracticeParticipant": false,
-      "isFinalParticipant": false,
-      "practiceSlot": null,
-      "finalSlot": null
+      "isPracticeParticipant": true,
+      "isFinalParticipant": true,
+      "practiceSlot": 2,
+      "finalSlot": 1
     },
     {
       "participantId": "kazgau-2-p1",
@@ -535,9 +535,9 @@
       "fullName": "Орлов Никита Сергеевич",
       "isTheoryParticipant": true,
       "isPracticeParticipant": false,
-      "isFinalParticipant": false,
+      "isFinalParticipant": true,
       "practiceSlot": null,
-      "finalSlot": null
+      "finalSlot": 1
     },
     {
       "participantId": "ulgau-p3",
@@ -545,9 +545,9 @@
       "fullName": "Россошанская Арина Владиславовна",
       "isTheoryParticipant": true,
       "isPracticeParticipant": false,
-      "isFinalParticipant": false,
+      "isFinalParticipant": true,
       "practiceSlot": null,
-      "finalSlot": null
+      "finalSlot": 2
     },
     {
       "participantId": "ulgau-p4",
@@ -1027,15 +1027,15 @@
     },
     {
       "participantId": "skryabinka-p2",
-      "score": 0
+      "score": 60
     },
     {
       "participantId": "skryabinka-p3",
-      "score": 0
+      "score": 60
     },
     {
       "participantId": "skryabinka-p4",
-      "score": 0
+      "score": 60
     },
     {
       "participantId": "skryabinka-p5",
@@ -1465,11 +1465,11 @@
     },
     {
       "participantId": "skryabinka-p2",
-      "time": 0,
-      "safety": 0,
-      "model": 0,
-      "mp": 0,
-      "angle": 0,
+      "time": 20,
+      "safety": 20,
+      "model": 20,
+      "mp": 20,
+      "angle": 20,
       "length": 0,
       "width": 0,
       "c1": 0,
@@ -1481,11 +1481,11 @@
     },
     {
       "participantId": "skryabinka-p3",
-      "time": 0,
-      "safety": 0,
-      "model": 0,
-      "mp": 0,
-      "angle": 0,
+      "time": 20,
+      "safety": 20,
+      "model": 20,
+      "mp": 20,
+      "angle": 20,
       "length": 0,
       "width": 0,
       "c1": 0,
@@ -1497,11 +1497,11 @@
     },
     {
       "participantId": "skryabinka-p4",
-      "time": 0,
-      "safety": 0,
-      "model": 0,
-      "mp": 0,
-      "angle": 0,
+      "time": 20,
+      "safety": 20,
+      "model": 20,
+      "mp": 20,
+      "angle": 20,
       "length": 0,
       "width": 0,
       "c1": 0,
@@ -2904,8 +2904,8 @@
     {
       "participantId": "skryabinka-p3",
       "leg1": {
-        "time": 0,
-        "safety": 0,
+        "time": 20,
+        "safety": 35,
         "model": 0,
         "mp": 0,
         "angle": 0,
@@ -2919,8 +2919,8 @@
         "thickness": 0
       },
       "leg2": {
-        "time": 0,
-        "safety": 0,
+        "time": 20,
+        "safety": 1,
         "model": 0,
         "mp": 0,
         "angle": 0,
@@ -2937,7 +2937,7 @@
     {
       "participantId": "skryabinka-p4",
       "leg1": {
-        "time": 0,
+        "time": 20,
         "safety": 0,
         "model": 0,
         "mp": 0,
@@ -2952,7 +2952,7 @@
         "thickness": 0
       },
       "leg2": {
-        "time": 0,
+        "time": 20,
         "safety": 0,
         "model": 0,
         "mp": 0,

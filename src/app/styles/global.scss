@@ -137,6 +137,10 @@ select {
     overflow: hidden;
     color: #091a48;
 }
+.score-table,
+.score-table > .score-row:nth-last-child > * {
+    border-bottom-color: transparent !important;
+}
 .score-head,
 .score-row {
     display: grid;
@@ -172,7 +176,7 @@ select {
     top: 263px;
     width: 1708px;
     height: 680px;
-    border: 1px solid #aeb9ca;
+    border: 0;
     border-radius: 10px;
     background: white;
 }
@@ -313,7 +317,7 @@ select {
     top: 248px;
     width: 1844px;
     height: 675px;
-    border: 1px solid #092b6d;
+    border: 0;
     border-radius: 12px;
     background: white;
 }
@@ -537,22 +541,190 @@ select {
     width: 48px;
     height: 48px;
 }
+.final-place-card {
+    position: absolute;
+    display: grid;
+    grid-template-rows: minmax(48px, auto) auto auto auto;
+    place-items: center;
+    align-content: center;
+    gap: 6px;
+    padding: 12px 18px;
+    text-align: center;
+    color: #092b6d;
+    line-height: 1.18;
+    text-transform: uppercase;
+    overflow: hidden;
+}
+.final-place-card strong {
+    max-width: 100%;
+    max-height: none;
+    overflow: visible;
+    font-size: 17px;
+    font-weight: 900;
+    text-wrap: balance;
+}
+.final-place-identity {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+.final-place-identity img {
+    width: 62px;
+    height: 62px;
+    object-fit: contain;
+}
+.final-place-card b {
+    font-size: 56px;
+    line-height: 0.8;
+}
+.final-place-card small {
+    font-size: 20px;
+    font-weight: 900;
+}
+.final-place-1 {
+    left: 755px;
+    top: 367px;
+    width: 420px;
+    height: 260px;
+    color: #c81224;
+}
+.final-place-1 strong {
+    font-size: 16px;
+}
+.final-place-1 b {
+    font-size: 64px;
+}
+.final-place-2 {
+    left: 387px;
+    top: 390px;
+    width: 330px;
+    height: 236px;
+}
+.final-place-3 {
+    left: 1209px;
+    top: 398px;
+    width: 300px;
+    height: 226px;
+}
+.final-place-4,
+.final-place-5 {
+    top: 442px;
+    width: 260px;
+    height: 220px;
+}
+.final-place-4 {
+    left: 44px;
+}
+.final-place-5 {
+    right: 70px;
+}
+.final-place-4 strong,
+.final-place-5 strong {
+    max-height: none;
+    font-size: 14px;
+}
+.final-place-4 .final-place-identity,
+.final-place-5 .final-place-identity {
+    gap: 16px;
+}
+.final-place-4 .final-place-identity img,
+.final-place-5 .final-place-identity img {
+    width: 48px;
+    height: 48px;
+}
+.final-place-4 b,
+.final-place-5 b {
+    font-size: 48px;
+}
+.final-place-4 small,
+.final-place-5 small {
+    font-size: 16px;
+}
+.final-place-card.is-name-medium {
+    gap: 5px;
+}
+.final-place-card.is-name-medium strong {
+    font-size: 14px !important;
+}
+.final-place-card.is-name-long {
+    gap: 4px;
+}
+.final-place-card.is-name-long strong {
+    font-size: 14px;
+    line-height: 1.12;
+}
+.final-place-card.is-name-long .final-place-identity img {
+    width: 44px;
+    height: 44px;
+}
+.final-place-card.is-name-long b {
+    font-size: 44px;
+}
+.final-place-card.is-name-long small {
+    font-size: 14px;
+}
+.final-place-1.is-name-medium strong {
+    font-size: 18px !important;
+}
+.final-place-1.is-name-long strong {
+    font-size: 16px !important;
+}
+.final-place-1.is-name-long b {
+    font-size: 58px;
+}
+.final-place-4.is-name-medium strong,
+.final-place-5.is-name-medium strong,
+.final-place-4.is-name-long strong,
+.final-place-5.is-name-long strong {
+    font-size: 11px;
+}
+.final-place-4.is-name-long b,
+.final-place-5.is-name-long b {
+    font-size: 36px;
+}
 .final-table {
     left: 31px;
     top: 675px;
     width: 1858px;
-    height: 280px;
+    height: 292px;
     border-radius: 12px;
 }
 .final-table .score-head,
 .final-table .score-row {
-    grid-template-columns: 110px minmax(650px, 1fr) 250px 250px 190px;
+    grid-template-columns: 92px minmax(600px, 1fr) 170px 170px 260px 170px 170px;
 }
 .final-table .score-head {
-    height: 58px;
+    height: 72px;
+    font-size: 15px;
 }
 .final-table .score-row {
-    height: 44px;
+    height: 43px;
+    font-size: 18px;
+}
+.final-table .score-head > span,
+.final-table .score-row > * {
+    height: 100%;
+    display: grid;
+    place-content: center;
+    border-right: 1px solid #d8e0eb;
+}
+.final-table .score-head > span:last-child,
+.final-table .score-row > *:last-child {
+    border-right: 0;
+}
+.final-table .score-head small {
+    line-height: 1.15;
+}
+.final-table .team-identity {
+    padding-right: 12px;
+    justify-content: stretch;
+    place-content: center stretch;
+}
+.final-team-placeholder {
+    color: #7c879a;
+    font-size: 22px;
+    font-weight: 800;
 }
 .finalist-legs {
     display: flex !important;

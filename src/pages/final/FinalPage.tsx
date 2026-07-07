@@ -1,6 +1,4 @@
 import { useScoreboard } from "../../features/scoreboard-refresh/useScoreboard";
-import { CompetitionHeader } from "../../shared/ui/CompetitionHeader";
-import { LoadingStage, StageLayout } from "../../shared/ui/StageLayout";
 import {
   CountryFlag,
   PlaceBadge,
@@ -8,30 +6,47 @@ import {
 } from "../../entities/team/TeamIdentity";
 import {
   FINAL_STAGE_MAX,
-  scoreBreakdownTotal,
+  FINAL_TOTAL_MAX,
+  PRACTICE_STAGE_MAX,
+  QUALIFYING_MAX,
+  THEORY_STAGE_MAX,
   type ScoreboardResponse,
   type TeamResult,
 } from "../../shared/model/scoreboard";
+import { LoadingStage, StageLayout } from "../../shared/ui/StageLayout";
 
-function PodiumCard({
+function scoreUnit(value: number) {
+  const mod10 = value % 10;
+  const mod100 = value % 100;
+  if (mod10 === 1 && mod100 !== 11) return "балл";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return "балла";
+  }
+  return "баллов";
+}
+
+function FinalPlaceCard({
   result,
   data,
-  className = "",
+  place,
 }: {
   result?: TeamResult;
   data: ScoreboardResponse;
-  className?: string;
+  place: number;
 }) {
   if (!result) return null;
   const team = data.teams.find((item) => item.teamId === result.teamId)!;
+  const nameLengthClass =
+    team.fullName.length > 85
+      ? "is-name-long"
+      : team.fullName.length > 55
+        ? "is-name-medium"
+        : "";
+
   return (
-    <div className={`podium-card ${className}`}>
-      <strong>
-        {data.settings.teamNameMode === "short"
-          ? team.shortName
-          : team.fullName}
-      </strong>
-      <div>
+    <div className={`final-place-card final-place-${place} ${nameLengthClass}`}>
+      <strong title={team.fullName}>{team.fullName}</strong>
+      <div className="final-place-identity">
         <CountryFlag country={team.country} />
         {team.logoFile ? (
           <img src={`/assets/logos/teams/${team.logoFile}`} alt="" />
@@ -41,8 +56,8 @@ function PodiumCard({
           </b>
         )}
       </div>
-      <b>{result.finalTotal}</b>
-      <small>баллов</small>
+      <b>{result.total}</b>
+      <small>{scoreUnit(result.total)}</small>
     </div>
   );
 }
@@ -50,84 +65,67 @@ function PodiumCard({
 export function FinalPage() {
   const { data, error } = useScoreboard();
   if (!data) return <LoadingStage error={error} />;
-  const results = data.stageResults.final;
-  const teams = new Map(data.teams.map((team) => [team.teamId, team]));
-  const finalScores = new Map(
-    data.participantFinalScores.map((score) => [score.participantId, score]),
+
+  const finalistsCount = Math.min(
+    5,
+    Math.max(0, data.settings.finalistsCount || 5),
   );
-  const finalistsByTeam = new Map<string, typeof data.participants>();
-  for (const participant of data.participants) {
-    if (!participant.isFinalParticipant) continue;
-    finalistsByTeam.set(participant.teamId, [
-      ...(finalistsByTeam.get(participant.teamId) ?? []),
-      participant,
-    ]);
-  }
+  const results = data.stageResults.final.slice(0, finalistsCount);
+  const rows = Array.from({ length: finalistsCount }, (_, index) => ({
+    place: index + 1,
+    result: results[index],
+  }));
+  const teams = new Map(data.teams.map((team) => [team.teamId, team]));
+
   return (
-    <StageLayout background="/assets/backgrounds/final-bg.png" data={data}>
-      <CompetitionHeader title="Результаты финального этапа" accent="red" />
-      <div className="final-caps">
-        <span>2 участника × 2 ноги по 100 баллов</span>
-        <span>Максимум за финал - {FINAL_STAGE_MAX} баллов</span>
-      </div>
-      <PodiumCard result={results[1]} data={data} className="podium-second" />
-      <PodiumCard result={results[0]} data={data} className="podium-first" />
-      <PodiumCard result={results[2]} data={data} className="podium-third" />
-      <PodiumCard result={results[3]} data={data} className="podium-fourth" />
-      <PodiumCard result={results[4]} data={data} className="podium-fifth" />
+    <StageLayout background="/assets/backgrounds/final-bg.webp" data={data}>
+      {rows.map(({ place, result }) => (
+        <FinalPlaceCard
+          key={`place-card-${place}`}
+          result={result}
+          data={data}
+          place={place}
+        />
+      ))}
       <div className="score-table final-table">
         <div className="score-head">
           <span>Место</span>
           <span>Команда</span>
           <span>
-            Участник 1<small>нога 1 + нога 2</small>
+            Теория<small>макс. {THEORY_STAGE_MAX}</small>
           </span>
           <span>
-            Участник 2<small>нога 1 + нога 2</small>
+            Практика<small>макс. {PRACTICE_STAGE_MAX}</small>
           </span>
           <span>
-            Баллы финала<small>макс. {FINAL_STAGE_MAX}</small>
+            Сумма<small>теория + практика, макс. {QUALIFYING_MAX}</small>
+          </span>
+          <span>
+            Финал<small>макс. {FINAL_STAGE_MAX}</small>
+          </span>
+          <span>
+            Итого<small>макс. {FINAL_TOTAL_MAX}</small>
           </span>
         </div>
-        {results.map((result) => {
-          const finalists = [
-            ...(finalistsByTeam.get(result.teamId) ?? []),
-          ].sort((a, b) => (a.finalSlot ?? 99) - (b.finalSlot ?? 99));
-          return (
-            <div className="score-row" key={result.teamId}>
-              <PlaceBadge place={result.place} />
+        {rows.map(({ place, result }) => (
+          <div className="score-row" key={result?.teamId ?? `empty-${place}`}>
+            <PlaceBadge place={place} />
+            {result ? (
               <TeamIdentity
                 team={teams.get(result.teamId)!}
                 settings={data.settings}
                 compact
               />
-              {[0, 1].map((index) => {
-                const participant = finalists[index];
-                const score = participant
-                  ? finalScores.get(participant.participantId)
-                  : undefined;
-                return (
-                  <strong
-                    className="finalist-legs"
-                    key={participant?.participantId ?? index}
-                    title={participant?.fullName}
-                  >
-                    {score ? (
-                      <>
-                        <span>{scoreBreakdownTotal(score.leg1)}</span>
-                        <i>+</i>
-                        <span>{scoreBreakdownTotal(score.leg2)}</span>
-                      </>
-                    ) : (
-                      "-"
-                    )}
-                  </strong>
-                );
-              })}
-              <strong className="red-score">{result.finalTotal}</strong>
-            </div>
-          );
-        })}
+            ) : (
+              <span className="final-team-placeholder">-</span>
+            )}
+            <strong>{result?.theoryTotal ?? "-"}</strong>
+            <strong>{result?.practiceTotal ?? "-"}</strong>
+            <strong>{result?.qualifyingTotal ?? "-"}</strong>
+            <strong>{result?.finalTotal ?? "-"}</strong>
+            <strong className="red-score">{result?.total ?? "-"}</strong>
+          </div>
+        ))}
       </div>
     </StageLayout>
   );

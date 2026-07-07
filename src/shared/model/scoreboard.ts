@@ -10,6 +10,7 @@ export const THEORY_STAGE_MAX = 300;
 export const PRACTICE_STAGE_MAX = 300;
 export const FINAL_STAGE_MAX = 400;
 export const QUALIFYING_MAX = THEORY_STAGE_MAX + PRACTICE_STAGE_MAX;
+export const FINAL_TOTAL_MAX = QUALIFYING_MAX + FINAL_STAGE_MAX;
 export const PRACTICE_PARTICIPANTS_MAX = 3;
 export const FINAL_PARTICIPANTS_MAX = 2;
 
@@ -179,7 +180,7 @@ export function calculateStageResults(document: ScoreboardDocument): ScoreboardR
       practiceTotal,
       qualifyingTotal: theoryTotal + practiceTotal,
       finalTotal,
-      total: finalTotal,
+      total: theoryTotal + practiceTotal + finalTotal,
       leaderGap: 0,
       finalStatus: team.isFinalist
         ? (finalTotal > 0 ? 'done' as const : 'not_participating' as const)
@@ -193,7 +194,7 @@ export function calculateStageResults(document: ScoreboardDocument): ScoreboardR
       ? item.theoryTotal
       : stage === 'practice'
         ? item.qualifyingTotal
-        : item.finalTotal;
+        : item.total;
     const rows = base
       .filter((item) => {
         const team = teamMap.get(item.teamId);

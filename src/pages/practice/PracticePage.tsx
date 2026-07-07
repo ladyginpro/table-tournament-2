@@ -1,10 +1,8 @@
+import type { CSSProperties } from "react";
 import { useScoreboard } from "../../features/scoreboard-refresh/useScoreboard";
 import { PlaceBadge, TeamIdentity } from "../../entities/team/TeamIdentity";
-import { CompetitionHeader } from "../../shared/ui/CompetitionHeader";
 import { LoadingStage, StageLayout } from "../../shared/ui/StageLayout";
-import type { CSSProperties } from "react";
 import {
-  PRACTICE_STAGE_MAX,
   QUALIFYING_MAX,
   scoreBreakdownTotal,
   THEORY_STAGE_MAX,
@@ -21,11 +19,13 @@ const statusLabels: Record<PerformanceStatus, string> = {
 export function PracticePage() {
   const { data, error } = useScoreboard();
   if (!data) return <LoadingStage error={error} />;
+
   const teams = new Map(data.teams.map((team) => [team.teamId, team]));
   const practiceScores = new Map(
     data.practiceScores.map((score) => [score.participantId, score]),
   );
   const participantsByTeam = new Map<string, typeof data.participants>();
+
   for (const participant of data.participants) {
     if (!participant.isPracticeParticipant) continue;
     participantsByTeam.set(participant.teamId, [
@@ -35,11 +35,7 @@ export function PracticePage() {
   }
 
   return (
-    <StageLayout background="/assets/backgrounds/practice-bg.png" data={data}>
-      <CompetitionHeader title="Результаты практического этапа" accent="red" />
-      <div className="stage-cap red">
-        Максимум за этап - {PRACTICE_STAGE_MAX} баллов -{" "}
-      </div>
+    <StageLayout background="/assets/backgrounds/practice-bg.webp" data={data}>
       <div
         className="score-table practice-table"
         style={
@@ -124,7 +120,7 @@ export function PracticePage() {
                       {status === "done"
                         ? "✓"
                         : status === "not_started"
-                          ? "−"
+                          ? "-"
                           : ""}
                     </span>
                   ))}
@@ -135,31 +131,6 @@ export function PracticePage() {
             </div>
           );
         })}
-      </div>
-      <div className="legend">
-        <b>Условные обозначения:</b>
-        <span>
-          <i className="status-dot done">✓</i> - выступил
-        </span>
-        <span>
-          <i className="status-dot preparing" /> - готовится
-        </span>
-        <span>
-          <i className="status-dot not_started">−</i> - не начал
-        </span>
-      </div>
-      <div className="stage-maximum wide">
-        🏆{" "}
-        <span>
-          Максимум за этап
-          <br />
-          <b>{PRACTICE_STAGE_MAX}</b> баллов
-        </span>
-        <span>
-          Далее: финальный этап
-          <br />
-          <em>Максимум - 400 баллов</em>
-        </span>
       </div>
     </StageLayout>
   );
